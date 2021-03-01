@@ -1,4 +1,4 @@
-package integers
+package main
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 func main() {
 	fmt.Println(Add(2,2))
 }
-
-func Add(i int, i2 int) int {
-	return 0
+// Add takes two integers and returns the sum of them.
+func Add(x int, y int) int {
+	return x + y
 }
