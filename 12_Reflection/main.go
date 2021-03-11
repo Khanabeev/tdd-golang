@@ -1,37 +1,47 @@
 package main
 
-import (
-	"fmt"
-	"math/rand"
-	"time"
-)
+import "reflect"
 
-type Signal struct {
-	outChan chan int
-}
+func walk(x interface{}, fn func(input string)) {
+	val := getValue(x)
 
-func main() {
-	signal := Signal{outChan: make(chan int, 10)}
+	walkValue := func(value reflect.Value) {
+		walk(value.Interface(), fn)
+	}
 
-	go signal.flash()
-	ticker := time.NewTicker(time.Second * 1)
-	for {
-		select {
-		case <-signal.getOutChan():
-			fmt.Println("Get message from FLASH")
-		case <-ticker.C:
-			fmt.Println("Get message from TICKER")
+	switch val.Kind() {
+	case reflect.String:
+		fn(val.String())
+	case reflect.Struct:
+		for i := 0; i < val.NumField(); i++ {
+			walkValue(val.Field(i))
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < val.Len(); i++ {
+			walkValue(val.Index(i))
+		}
+	case reflect.Map:
+		for _, key := range val.MapKeys() {
+			walkValue(val.MapIndex(key))
+		}
+	case reflect.Chan:
+		for v, ok := val.Recv(); ok; v, ok = val.Recv() {
+			walk(v.Interface(), fn)
+		}
+	case reflect.Func:
+		valFnResult := val.Call(nil)
+		for _, res := range valFnResult {
+			walk(res.Interface(), fn)
 		}
 	}
 }
 
-func (s *Signal) flash() {
-	for {
-		time.Sleep(time.Second * 2)
-		s.outChan <- rand.Int()
-	}
-}
+func getValue(x interface{}) reflect.Value {
+	val := reflect.ValueOf(x)
 
-func (s *Signal) getOutChan() <-chan int {
-	return s.outChan
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	return val
 }
